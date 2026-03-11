@@ -1,6 +1,6 @@
 %% --- PASO 3: Aprendizaje y Evaluación ---
 clearvars; clc; close all;
- rng('shuffle');
+ rng(42); % para que sea reproducible
 
 % ==========================================
 % 3.1. CONFIGURACIÓN APRENDIZAJE
@@ -10,9 +10,7 @@ clearvars; clc; close all;
 fprintf('Selecciona el dataset a analizar:\n');
 fprintf('  1. Iris\n');
 fprintf('  2. QSAR\n');
-
 opcion_dataset = input('Elige una opción [Por defecto: Iris]: ');
-
 if isempty(opcion_dataset)
     opcion_dataset = 1;
 end
@@ -24,12 +22,10 @@ dataset_usar = lista_datasets{opcion_dataset}; % Saca el nombre usando el númer
 
 % --- 2. SELECCIÓN DE MODELO ---
 fprintf('\nSelecciona el modelo a entrenar:\n');
-fprintf('  1. Linear (LDA)\n');
-fprintf('  2. Pseudoquadratic (QDA)\n');
-fprintf('  3. Decision Tree (Árboles)\n');
-
+fprintf('  1. LDA  - Discriminante Lineal\n');
+fprintf('  2. QDA  - Discriminante Cuadrático\n');
+fprintf('  3. Tree - Árbol de Decisión\n');
 opcion_modelo = input('Elige una opción [Por defecto: Linear]: ');
-
 if isempty(opcion_modelo)
     opcion_modelo = 1;
 end
@@ -37,34 +33,76 @@ end
 lista_modelos = {'linear', 'pseudoquadratic', 'tree'};
 modelo_usar = lista_modelos{opcion_modelo};
 
-% --- 3. SELECCIÓN DE VERSIÓN (Solo si es Árbol) ---
-opcion_v = 1; % Valor por defecto para LDA/QDA
+% --- 3. CONFIGURACIÓN ÁRBOL (solo si es tree) ---
+opcion_param = 0;
+valor_param  = 0;
+etiqueta_version = '';
+
 if strcmp(modelo_usar, 'tree')
-    fprintf('\nConfiguración del Árbol de Decisión:\n');
-    fprintf('  1. Por defecto (Árbol extenso/completo)\n');
-    fprintf('  2. Limitar profundidad (MaxNumSplits = 15)\n');
-    fprintf('  3. Limitar tamaño de hojas (MinLeafSize = 30)\n');
-    opcion_v = input('Elige una versión de árbol [1-3]: ');
-    if isempty(opcion_v), opcion_v = 1; end
+
+    fprintf('\nParámetro a modificar:\n');
+    fprintf('  1. MaxNumSplits  - Profundidad máxima del árbol\n');
+    fprintf('  2. MinLeafSize   - Mínimo de ejemplos en una hoja\n');
+    fprintf('  3. MinParentSize - Mínimo de ejemplos para dividir un nodo\n');
+    opcion_param = input('Elige parámetro [1-3]: ');
+    if isempty(opcion_param), opcion_param = 1; end
+
+    % Valores sugeridos según dataset
+    fprintf('\n--- Valores sugeridos para %s ---\n', dataset_usar);
+    if strcmp(dataset_usar, 'Iris')
+        % Iris: 150 muestras, 3 clases, ~50 por clase
+        switch opcion_param
+            case 1
+                fprintf('  MaxNumSplits: 2 (árbol mínimo), 5 (moderado), 10 (extenso)\n');
+                fprintf('  Justificación: Con 150 muestras y clases bien separadas,\n');
+                fprintf('  árboles profundos tienden a sobreajustar.\n');
+            case 2
+                fprintf('  MinLeafSize: 20 (restrictivo), 10 (moderado), 5 (permisivo)\n');
+                fprintf('  Justificación: Con 50 muestras por clase, hojas muy pequeñas\n');
+                fprintf('  pueden memorizar el conjunto de entrenamiento.\n');
+            case 3
+                fprintf('  MinParentSize: 20 (restrictivo), 10 (moderado), 5 (permisivo)\n');
+                fprintf('  Justificación: Similar a MinLeafSize pero controla la división\n');
+                fprintf('  de nodos internos.\n');
+        end
+    else
+        % QSAR: 1055 muestras, 2 clases
+        switch opcion_param
+            case 1
+                fprintf('  MaxNumSplits: 5 (árbol simple), 20 (moderado), 50 (extenso)\n');
+                fprintf('  Justificación: Con 1055 muestras y 41 variables, el árbol por\n');
+                fprintf('  defecto puede ser muy profundo. Limitar evita sobreajuste.\n');
+            case 2
+                fprintf('  MinLeafSize: 50 (restrictivo), 20 (moderado), 5 (permisivo)\n');
+                fprintf('  Justificación: Con más de 1000 muestras, hojas con al menos\n');
+                fprintf('  50 ejemplos siguen siendo representativas.\n');
+            case 3
+                fprintf('  MinParentSize: 50 (restrictivo), 20 (moderado), 10 (permisivo)\n');
+                fprintf('  Justificación: Controla cuántos ejemplos mínimos necesita un\n');
+                fprintf('  nodo para poder dividirse.\n');
+        end
+    end
+
+    valor_param = input('\nIntroduce el valor del parámetro: ');
+
+    % Etiqueta legible para guardar y mostrar
+    nombres_param = {'MaxNumSplits', 'MinLeafSize', 'MinParentSize'};
+    etiqueta_version = sprintf('%s_%d', nombres_param{opcion_param}, valor_param);
+    fprintf('\n>>> Árbol configurado: %s = %d <<<\n', nombres_param{opcion_param}, valor_param);
 end
 
-% Configuración de etiquetas para Iris. Modelo árbol
-resName = ''; predNames = {};
-if strcmp(dataset_usar, 'Iris')
-    resName = 'Iris type';
-    predNames = {'SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth'};
+K = 10;
+fprintf('\n>>> Dataset: %s | Modelo: %s', dataset_usar, modelo_usar);
+if strcmp(modelo_usar, 'tree')
+    fprintf(' (%s)', etiqueta_version);
 end
-
-K = 10; % Número de Folds
-
-fprintf('\n>>> Ejecutando dataset %s | Modelo: %s (v%d) <<<\n\n', dataset_usar, modelo_usar, opcion_v);
+fprintf(' | K=%d folds <<<\n\n', K);
 
 % ==========================================
 % 3.2. CARGA DE DATOS Y PREPARACIÓN
 % ==========================================
 
 % Cargamos el .mat correspondiente generado en el Paso 2 (paso2_preprocesado)
-
 nombre_archivo_datos = sprintf('Datos_%s_Preprocesados.mat', dataset_usar);
 try
     load(nombre_archivo_datos);
@@ -72,40 +110,29 @@ catch ME
     fprintf('No se pudo cargar el archivo. Error: %s\n', ME.message);
 end
 
-% Asignación según el dataset
-%if strcmp(dataset_usar, 'Iris')
-%    DATA_X = X_iris; DATA_Y = Y_iris;
-%else
-%    DATA_X = X_qsar; DATA_Y = Y_qsar;
-%end
-
+% X e Y -> Son las variables normalizadas
 DATA_X = X;
 DATA_Y = Y;
 
-
+[n_muestras, n_vars] = size(DATA_X);
 unique_classes = unique(DATA_Y);
 NumClass = length(unique_classes);
 CV = cvpartition(DATA_Y, 'Kfold', K);
 
+fprintf('Muestras: %d | Variables: %d | Clases: %d\n\n', n_muestras, n_vars, NumClass);
 
 % ==========================================
 % 3.3. ENTRENAMIENTO Y EVALUACIÓN (K-Folds)
 % ==========================================
 
-% Inicialización de métricas
-Recall_tr = zeros(K, NumClass);
-Spec_tr = zeros(K, NumClass);
-Precision_tr = zeros(K, NumClass);
-ACC_tr = zeros(K, NumClass);
-F1_tr = zeros(K, NumClass);
+% Métricas por fold y clase [K x NumClass]
+Recall_tr    = zeros(K, NumClass); Recall_ts    = zeros(K, NumClass);
+Spec_tr      = zeros(K, NumClass); Spec_ts      = zeros(K, NumClass);
+Precision_tr = zeros(K, NumClass); Precision_ts = zeros(K, NumClass);
+ACC_tr       = zeros(K, NumClass); ACC_ts       = zeros(K, NumClass);
+F1_tr        = zeros(K, NumClass); F1_ts        = zeros(K, NumClass);
 
-Recall_ts = zeros(K, NumClass);
-Spec_ts = zeros(K, NumClass);
-Precision_ts = zeros(K, NumClass);
-ACC_ts = zeros(K, NumClass);
-F1_ts = zeros(K, NumClass);
-
-
+nombres_param = {'MaxNumSplits', 'MinLeafSize', 'MinParentSize'};
 
 for i = 1:K
     trIdx = CV.training(i);
@@ -114,67 +141,119 @@ for i = 1:K
     X_ts = DATA_X(tsIdx,:); Y_ts = DATA_Y(tsIdx);
 
     % --- Entrenar modelo ---
-    if strcmp(modelo_usar, 'tree')
-        % Configuración según la versión elegida
-        switch opcion_v
-            case 1 % Por defecto
-                Mdl = fitctree(X_tr, Y_tr, 'PredictorNames', predNames, 'ResponseName', resName);
-            case 2 % Profundidad
-                Mdl = fitctree(X_tr, Y_tr, 'MaxNumSplits', 15, 'PredictorNames', predNames);
-            case 3 % Hojas
-                Mdl = fitctree(X_tr, Y_tr, 'MinLeafSize', 30, 'PredictorNames', predNames);
-        end
-        
-        % Visualización solo en el primer Fold
+     if strcmp(modelo_usar, 'tree')
+        param_name = nombres_param{opcion_param};
+        Mdl = fitctree(X_tr, Y_tr, param_name, valor_param);
+
+        % Visualizar árbol solo en el primer fold
         if i == 1
-            fprintf('\n--- Visualización del Árbol (Fold 1) ---\n');
-            view(Mdl); % Modo texto
-            view(Mdl, 'Mode', 'graph'); % Gráfico
+            fprintf('--- Árbol entrenado (Fold 1) ---\n');
+            view(Mdl, 'Mode', 'graph');
+            saveas(gcf, sprintf('fig_%s_tree_%s.png', lower(dataset_usar), etiqueta_version));
         end
-        % Discriminantes
+    % Discriminantes
     elseif strcmp (modelo_usar, 'pseudoquadratic')
         Mdl = fitcdiscr(X_tr, Y_tr, 'DiscrimType', 'pseudoquadratic');
     else
         Mdl = fitcdiscr(X_tr, Y_tr, 'DiscrimType', 'linear');
-
     end
 
-    % --- Evaluación en TEST ---
+    % --- Predicciones ---
     Predict_ts = predict(Mdl, X_ts);
-    CM_ts = confusionmat(Y_ts, Predict_ts);
-
-    % --- Evaluación en TRAIN ---
     Predict_tr = predict(Mdl, X_tr);
+
+    % --- Matrices de confusión ---
+    CM_ts = confusionmat(Y_ts, Predict_ts);
     CM_tr = confusionmat(Y_tr, Predict_tr);
 
-
+    % --- Métricas por clase ---
     for c = 1:NumClass
-        [Recall_ts(i, c), Spec_ts(i,c), Precision_ts(i,c), ~, ACC_ts(i,c), F1_ts(i,c)] = performanceIndexes(CM_ts, c);
-        [Recall_tr(i, c), Spec_tr(i,c), Precision_tr(i,c), ~, ACC_tr(i,c), F1_tr(i,c)] = performanceIndexes(CM_tr, c);
+        [Recall_ts(i,c), Spec_ts(i,c), Precision_ts(i,c), ~, ACC_ts(i,c), F1_ts(i,c)] = ...
+            performanceIndexes(CM_ts, c);
+        [Recall_tr(i,c), Spec_tr(i,c), Precision_tr(i,c), ~, ACC_tr(i,c), F1_tr(i,c)] = ...
+            performanceIndexes(CM_tr, c);
     end
 end
 
-% Media de F1 entre todas las clases del fold actual
-F1_Test_Folds = mean(F1_ts, 2);
-F1_Train_Folds = mean(F1_tr, 2);
+% ==========================================
+% 3.4. CÁLCULO DE ESTADÍSTICOS FINALES
+% ==========================================
 
-% Cálculo de medias finales
-meanACC = mean(mean(ACC_ts, 1));
-meanF1 = mean(mean(F1_ts, 1));
-meanRecall = mean(mean(Recall_ts, 1));
-meanSpec = mean(mean(Spec_ts, 1));
-meanPrecision = mean(mean(Precision_ts, 1));
+% Media entre clases por fold → vector [K x 1]
+F1_ts_folds  = mean(F1_ts,  2);
+F1_tr_folds  = mean(F1_tr,  2);
+ACC_ts_folds = mean(ACC_ts, 2);
 
+% Estadísticos globales (media y std sobre los K folds)
+% TEST
+mean_F1_ts        = mean(F1_ts_folds);
+std_F1_ts         = std(F1_ts_folds);
+mean_ACC_ts       = mean(ACC_ts_folds);
+std_ACC_ts        = std(ACC_ts_folds);
+mean_Recall_ts    = mean(mean(Recall_ts,    2));
+std_Recall_ts     = std( mean(Recall_ts,    2));
+mean_Spec_ts      = mean(mean(Spec_ts,      2));
+std_Spec_ts       = std( mean(Spec_ts,      2));
+mean_Precision_ts = mean(mean(Precision_ts, 2));
+std_Precision_ts  = std( mean(Precision_ts, 2));
+
+% TRAIN (para detectar sobreajuste)
+mean_F1_tr  = mean(F1_tr_folds);
+std_F1_tr   = std(F1_tr_folds);
 
 % ==========================================
-% 2.4. RESULTADOS Y GUARDADO
+% 3.5. RESULTADOS EN CONSOLA
 % ==========================================
-fprintf('--- RESULTADOS FINALES ---\n');
-fprintf('F1-Score Medio TRAIN : %.4f\n', mean(F1_Train_Folds));
-fprintf('F1-Score Medio TEST  : %.4f\n', mean(F1_Test_Folds));
+fprintf('\n========== RESULTADOS: %s | %s', dataset_usar, modelo_usar);
+if strcmp(modelo_usar, 'tree'), fprintf(' (%s)', etiqueta_version); end
+fprintf(' ==========\n\n');
 
-% Guardamos solo lo necesario para el paso 3
-nombre_archivo_resultados = sprintf('Resultados_%s_%s_v%d.mat', dataset_usar, modelo_usar, opcion_v);
-save(nombre_archivo_resultados, 'F1_Test_Folds', 'F1_Train_Folds', 'modelo_usar', 'dataset_usar','opcion_v');
+% --- Por clase ---
+fprintf('--- Métricas por clase (media ± std sobre %d folds) ---\n', K);
+fprintf('%-12s %-18s %-18s %-18s %-18s\n', ...
+    'Clase', 'Recall', 'Specificity', 'Precision', 'F1-Score');
+for c = 1:NumClass
+    fprintf('%-12s %.4f ± %.4f   %.4f ± %.4f   %.4f ± %.4f   %.4f ± %.4f\n', ...
+        string(unique_classes(c)), ...
+        mean(Recall_ts(:,c)),    std(Recall_ts(:,c)), ...
+        mean(Spec_ts(:,c)),      std(Spec_ts(:,c)), ...
+        mean(Precision_ts(:,c)), std(Precision_ts(:,c)), ...
+        mean(F1_ts(:,c)),        std(F1_ts(:,c)));
+end
 
-fprintf('--- Resultados guardados en: %s\n', nombre_archivo_resultados);
+% --- Globales ---
+fprintf('\n--- Métricas globales (media ± std) ---\n');
+fprintf('  Accuracy  : %.4f ± %.4f\n', mean_ACC_ts,       std_ACC_ts);
+fprintf('  F1-Score  : %.4f ± %.4f\n', mean_F1_ts,        std_F1_ts);
+fprintf('  Recall    : %.4f ± %.4f\n', mean_Recall_ts,    std_Recall_ts);
+fprintf('  Specificity: %.4f ± %.4f\n', mean_Spec_ts,     std_Spec_ts);
+fprintf('  Precision : %.4f ± %.4f\n', mean_Precision_ts, std_Precision_ts);
+
+% --- Train vs Test (sobreajuste) ---
+fprintf('\n--- Comparación Train vs Test (F1-Score) ---\n');
+fprintf('  F1 Train : %.4f ± %.4f\n', mean_F1_tr, std_F1_tr);
+fprintf('  F1 Test  : %.4f ± %.4f\n', mean_F1_ts, std_F1_ts);
+gap = mean_F1_tr - mean_F1_ts;
+if gap > 0.05
+    fprintf('  x Gap Train-Test = %.4f → posible sobreajuste\n', gap);
+else
+    fprintf('  v Gap Train-Test = %.4f → buena generalización\n', gap);
+end
+
+% ==========================================
+% 3.6. GUARDAR RESULTADOS
+% ==========================================
+if strcmp(modelo_usar, 'tree')
+    nombre_resultados = sprintf('Resultados_%s_%s_%s.mat', ...
+        dataset_usar, modelo_usar, etiqueta_version);
+else
+    nombre_resultados = sprintf('Resultados_%s_%s.mat', dataset_usar, modelo_usar);
+end
+
+save(nombre_resultados, ...
+    'F1_ts_folds', 'F1_tr_folds', 'ACC_ts_folds', ...
+    'Recall_ts', 'Spec_ts', 'Precision_ts', 'ACC_ts', 'F1_ts', ...
+    'mean_F1_ts', 'std_F1_ts', 'mean_ACC_ts', 'std_ACC_ts', ...
+    'modelo_usar', 'dataset_usar', 'etiqueta_version', 'opcion_param', 'valor_param');
+
+fprintf('\nResultados guardados en: %s\n', nombre_resultados);
