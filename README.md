@@ -1,38 +1,115 @@
+# Inteligencia Computacional - Prácticas 1 y 2
 
-# Inteligencia Computacional - Evaluación de Modelos
-
-Se añaden scripts interactivos para calcular y comparar los resultados únicamente del dataset y modelo escogidos, facilitando el análisis guiado.
-
----
-
-## Script del Paso 2
-
-Este script entrena un modelo específico sobre el dataset escogido utilizando validación cruzada y guarda las métricas de rendimiento.
-
-**Instrucciones de ejecución:**
-
-1. Ejecutar el script en MATLAB.
-2. Escoger el dataset que se utilizará para realizar el test. Para escoger:
-   * **IRIS** -> Escribir `1` o simplemente pulsar **Enter** (opción por defecto).
-   * **QSAR** -> Escribir `2`.
-3. Seleccionar el modelo que se usará:
-   * **Linear** -> Escribir `1` o simplemente pulsar **Enter** (opción por defecto).
-   * **Quadratic** -> Escribir `2`.
-
-> **Nota:** Al finalizar, el script generará automáticamente un archivo `.mat` con los resultados, el cual es necesario para el siguiente paso.
+Scripts de MATLAB para el análisis, preprocesado, entrenamiento y comparación de modelos de clasificación sobre los datasets **Iris** y **QSAR**, siguiendo la metodología experimental de la asignatura.
 
 ---
 
-## Script del Paso 3
+## Orden de ejecución
 
-Este script toma los resultados previos y ejecuta la comparación estadística para determinar qué modelo funciona mejor.
+Los scripts deben ejecutarse **en orden**, ya que cada uno depende de los resultados del anterior:
 
-**⚠️ Requisito previo:**
-Antes de ejecutarlo, hay que asegurarse de que tenemos los resultados del paso anterior con **todos los modelos** del dataset que queremos analizar (es decir, haber ejecutado el Paso 2 tanto para Linear como para Quadratic en el mismo dataset).
+```
+paso1_analisis → paso2_preprocesado → paso3_aprendizaje → paso4_comparacion
+```
 
-**Instrucciones de ejecución:**
+---
 
-1. Ejecutar el script en MATLAB.
-2. Al ejecutarlo, nos pide especificar qué dataset vamos a comparar:
-   * **IRIS** -> Escribir `1` o simplemente pulsar **Enter** (opción por defecto).
-   * **QSAR** -> Escribir `2`.
+## Paso 1 — Análisis exploratorio (EDA)
+
+**¿Qué hace?**
+Analiza el dataset en crudo sin modificar nada. Su objetivo es entender la estructura de los datos antes de tomar ninguna decisión.
+
+**Al ejecutarlo imprime:**
+- Dimensiones del dataset (nº muestras × nº variables)
+- Nº de valores perdidos (NaN) por variable
+- Tabla de estadísticas descriptivas: media, mediana, desviación típica, mínimo y máximo (primeras 10 variables)
+- Nº de muestras con outliers según IQR, y en qué porcentaje del dataset
+- Balance de clases: cuántas muestras hay por clase y su porcentaje
+
+**Figuras generadas:**
+| Figura | Para qué sirve |
+|---|---|
+| `fig_*_clases.png` | Ver si las clases están balanceadas. Importante para elegir métricas en el paso 3 |
+| `fig_*_boxplot.png` | Ver la escala de cada variable y detectar outliers visualmente |
+| `fig_*_dispersion.png` | Ver relaciones entre variables y si las clases se separan bien (anticipa el rendimiento de LDA/QDA) |
+| `fig_*_correlacion.png` | Ver si hay variables redundantes (alta correlación puede desestabilizar LDA/QDA) |
+
+**Instrucciones:**
+1. Ejecutar en MATLAB.
+2. Seleccionar dataset:
+   - **Iris** → pulsar `1` o **Enter** (por defecto)
+   - **QSAR** → pulsar `2`
+
+> Este script no genera ningún archivo `.mat`. Es solo de consulta y análisis visual.
+
+---
+
+## Paso 2 — Preprocesado
+
+**¿Qué hace?**
+Aplica las transformaciones necesarias sobre los datos crudos y justifica cada decisión. Genera los datos limpios que usarán todos los modelos.
+
+**Al ejecutarlo imprime:**
+- Nº de NaN detectados y acción tomada (imputación por media si los hay)
+- Nº de muestras con outliers (IQR) y decisión justificada (se mantienen)
+- Pares de variables con correlación |r| ≥ 0.90 y decisión justificada (se mantienen, el enunciado prohíbe reducción de dimensión)
+- Ratio de dispersión entre variables (max std / min std) y decisión de normalizar
+- Confirmación de normalización Z-score aplicada
+
+**Figuras generadas:**
+| Figura | Para qué sirve |
+|---|---|
+| `fig_*_boxplot_outliers.png` | Respaldo visual del análisis IQR |
+| `fig_*_normalizacion.png` | Comparación de escalas antes y después del Z-score. Justifica visualmente la normalización |
+
+**Archivos generados:**
+- `Datos_Iris_Preprocesados.mat` → variables `X` (inputs normalizados) e `Y` (outputs)
+- `Datos_QSAR_Preprocesados.mat` → variables `X` (inputs normalizados) e `Y` (outputs)
+
+**Instrucciones:**
+1. Ejecutar en MATLAB.
+2. Seleccionar dataset:
+   - **Iris** → pulsar `1` o **Enter** (por defecto)
+   - **QSAR** → pulsar `2`
+
+> ⚠️ Ejecutar para **ambos datasets** antes de pasar al Paso 3.
+
+---
+
+## Paso 3 — Aprendizaje
+
+**¿Qué hace?**
+Entrena los modelos de clasificación sobre los datos preprocesados usando validación cruzada y guarda las métricas de rendimiento.
+
+**⚠️ Requisito previo:** Haber ejecutado el Paso 2 para el dataset que se quiere analizar.
+
+**Instrucciones:**
+1. Ejecutar en MATLAB.
+2. Seleccionar dataset (Iris / QSAR).
+3. Seleccionar modelo a entrenar.
+
+> Al finalizar genera un archivo `.mat` con los resultados necesarios para el Paso 4.
+
+---
+
+## Paso 4 — Comparación de modelos
+
+**¿Qué hace?**
+Carga los resultados de todos los modelos entrenados y determina cuál es el mejor para cada dataset mediante comparación estadística.
+
+**⚠️ Requisito previo:** Haber ejecutado el Paso 3 con **todos los modelos** del dataset a comparar.
+
+**Instrucciones:**
+1. Ejecutar en MATLAB.
+2. Seleccionar dataset (Iris / QSAR).
+
+---
+
+## Archivos de datos
+
+| Archivo | Contenido |
+|---|---|
+| `iris.mat` | Variables `INPUTS` (150×4) y `OUTPUTS` (150×1) |
+| `qsar_data.mat` | Variables `INPUTS_qsar` (1055×41) y `OUTPUTS_qsar` (1055×1) |
+| `Datos_Iris_Preprocesados.mat` | Generado por Paso 2. Variables `X`, `Y` |
+| `Datos_QSAR_Preprocesados.mat` | Generado por Paso 2. Variables `X`, `Y` |
