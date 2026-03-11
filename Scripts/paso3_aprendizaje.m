@@ -37,6 +37,8 @@ modelo_usar = lista_modelos{opcion_modelo};
 opcion_param = 0;
 valor_param  = 0;
 etiqueta_version = '';
+usar_defecto = false;
+nombres_param = {'MaxNumSplits', 'MinLeafSize', 'MinParentSize'};
 
 if strcmp(modelo_usar, 'tree')
 
@@ -85,10 +87,17 @@ if strcmp(modelo_usar, 'tree')
 
     valor_param = input('\nIntroduce el valor del parámetro: ');
 
-    % Etiqueta legible para guardar y mostrar
-    nombres_param = {'MaxNumSplits', 'MinLeafSize', 'MinParentSize'};
-    etiqueta_version = sprintf('%s_%d', nombres_param{opcion_param}, valor_param);
-    fprintf('\n>>> Árbol configurado: %s = %d <<<\n', nombres_param{opcion_param}, valor_param);
+    if isempty(valor_param)
+        % Árbol por defecto - usar un valor centinela
+        usar_defecto = true;
+        valor_param  = 0;  % 0 indica "por defecto"
+        etiqueta_version = sprintf('%s_default', nombres_param{opcion_param});
+        fprintf('→ Se usará el valor por defecto de %s\n', nombres_param{opcion_param});
+    else
+        usar_defecto = false;
+        etiqueta_version = sprintf('%s_%d', nombres_param{opcion_param}, valor_param);
+        fprintf('→ %s = %d\n', nombres_param{opcion_param}, valor_param);
+    end
 end
 
 K = 10;
@@ -141,9 +150,13 @@ for i = 1:K
     X_ts = DATA_X(tsIdx,:); Y_ts = DATA_Y(tsIdx);
 
     % --- Entrenar modelo ---
-     if strcmp(modelo_usar, 'tree')
-        param_name = nombres_param{opcion_param};
-        Mdl = fitctree(X_tr, Y_tr, param_name, valor_param);
+    if strcmp(modelo_usar, 'tree')
+        if usar_defecto
+            % Sin restricciones - árbol completo
+            Mdl = fitctree(X_tr, Y_tr);
+        else
+            Mdl = fitctree(X_tr, Y_tr, param_name, valor_param);
+        end
 
         % Visualizar árbol solo en el primer fold
         if i == 1

@@ -74,7 +74,6 @@ fprintf('\n--- Selección del mejor árbol ---\n');
 fprintf('p-valor obtenido: %.4f\n', P_trees);
 
 F1_medias_trees = [resumen_trees.mean_F1];
-[~, idx_mejor_tree] = max(F1_medias_trees);
 
 % REVISAR CRITERIO PARA ESCOGER EL MÁS SENCILLO     
 % Para IRIS las diferencias no son significativas aunque lo modifiquemos
@@ -87,7 +86,7 @@ if P_trees >= 0.10
     valores_param = zeros(n_trees, 1);
     for k = 1:n_trees
         res_tmp = load(archivos_trees(k).name);
-        valores_param(k) = res_tmp.valor_param;
+        valores_param(k) = res_tmp.valor_param(1);
     end
 
     % El más sencillo es el de mayor valor de MinParentSize/MinLeafSize
