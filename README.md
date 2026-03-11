@@ -79,29 +79,77 @@ Aplica las transformaciones necesarias sobre los datos crudos y justifica cada d
 ## Paso 3 — Aprendizaje
 
 **¿Qué hace?**
-Entrena los modelos de clasificación sobre los datos preprocesados usando validación cruzada y guarda las métricas de rendimiento.
+Entrena un modelo sobre los datos preprocesados usando validación cruzada con 10 folds y guarda las métricas de rendimiento. Debe ejecutarse varias veces para cubrir todos los modelos necesarios.
 
 **⚠️ Requisito previo:** Haber ejecutado el Paso 2 para el dataset que se quiere analizar.
 
+**Al ejecutarlo imprime:**
+- Tabla de métricas por clase (Recall, Specificity, Precision, F1) con media ± std sobre los 10 folds
+- Métricas globales (Accuracy, F1, Recall, Specificity, Precision) con media ± std
+- Comparación Train vs Test en F1 para detectar sobreajuste
+
 **Instrucciones:**
 1. Ejecutar en MATLAB.
-2. Seleccionar dataset (Iris / QSAR).
-3. Seleccionar modelo a entrenar.
+2. Seleccionar dataset:
+   - **Iris** → pulsar `1` o **Enter** (por defecto)
+   - **QSAR** → pulsar `2`
+3. Seleccionar modelo:
+   - `1` → LDA (Discriminante Lineal)
+   - `2` → QDA (Discriminante Cuadrático)
+   - `3` → Árbol de Decisión
+4. Si se elige Árbol, seleccionar parámetro a modificar:
+   - `1` → `MaxNumSplits` (profundidad máxima)
+   - `2` → `MinLeafSize` (mínimo de ejemplos en una hoja)
+   - `3` → `MinParentSize` (mínimo de ejemplos para dividir un nodo)
+5. Si se elige Árbol, introducir el valor numérico del parámetro. El script muestra valores sugeridos justificados según el dataset.
 
-> Al finalizar genera un archivo `.mat` con los resultados necesarios para el Paso 4.
+**Archivos generados:**
+- `Resultados_<Dataset>_linear.mat` → resultados LDA
+- `Resultados_<Dataset>_pseudoquadratic.mat` → resultados QDA
+- `Resultados_<Dataset>_tree_<Parametro>_<Valor>.mat` → resultados de cada versión de árbol
+
+**Figuras generadas:**
+| Figura | Para qué sirve |
+|---|---|
+| `fig_*_tree_*.png` | Visualización del árbol entrenado en el Fold 1. Permite ver cómo cambia la estructura al modificar parámetros |
+
+> ⚠️ Antes de pasar al Paso 4 hay que haber ejecutado este script para: **LDA**, **QDA** y **mínimo 3 versiones de árbol** (con distintos valores del mismo parámetro), para cada dataset.
 
 ---
 
 ## Paso 4 — Comparación de modelos
 
 **¿Qué hace?**
-Carga los resultados de todos los modelos entrenados y determina cuál es el mejor para cada dataset mediante comparación estadística.
+Realiza la comparación estadística en dos fases: primero selecciona el mejor árbol entre todas las versiones entrenadas, y luego enfrenta ese árbol con LDA y QDA para determinar el modelo final.
 
-**⚠️ Requisito previo:** Haber ejecutado el Paso 3 con **todos los modelos** del dataset a comparar.
+**⚠️ Requisito previo:** Haber ejecutado el Paso 3 para LDA, QDA y al menos 3 versiones de árbol del dataset a comparar.
+
+**Fase 1 — Comparación de árboles:**
+- Carga automáticamente todos los archivos `Resultados_<Dataset>_tree_*.mat`
+- Imprime tabla resumen con F1 y Accuracy (media ± std) de cada versión
+- Aplica test estadístico (Lilliefors → ANOVA o Kruskal-Wallis)
+- Si hay diferencias significativas: selecciona el árbol con mayor F1
+- Si no hay diferencias: selecciona el árbol más sencillo (más restringido)
+- Genera figura comparativa de boxplots entre versiones de árbol
+
+**Fase 2 — Comparación final (mejor árbol vs LDA vs QDA):**
+- Carga el árbol ganador de la Fase 1 junto con LDA y QDA
+- Imprime tabla resumen final con F1 y Accuracy (media ± std)
+- Aplica test estadístico final
+- Concluye con el modelo ganador: si no hay diferencias significativas, se elige LDA por ser el más sencillo
+- Genera figura comparativa de boxplots final
+
+**Figuras generadas:**
+| Figura | Para qué sirve |
+|---|---|
+| `fig_*_comparativa_trees.png` | Boxplots F1 de todas las versiones de árbol. Base para justificar la elección del árbol ganador |
+| `fig_*_comparativa_final.png` | Boxplots F1 de LDA vs QDA vs mejor árbol. Figura principal del informe para la conclusión final |
 
 **Instrucciones:**
 1. Ejecutar en MATLAB.
-2. Seleccionar dataset (Iris / QSAR).
+2. Seleccionar dataset:
+   - **Iris** → pulsar `1` o **Enter** (por defecto)
+   - **QSAR** → pulsar `2`
 
 ---
 
